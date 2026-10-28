@@ -13,257 +13,239 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS lấy cảm hứng từ bộ Progress Bar Teal-Mint của người dùng
+# Custom CSS lấy cảm hứng từ bộ Progress Bar Teal-Mint
 st.markdown(
     """
-    <style>
-    /* Header chính */
-    .main-header {
-        background: linear-gradient(135deg, #24474e 0%, #377375 55%, #65b89f 100%);
-        padding: 26px 30px;
-        border-radius: 16px;
-        color: white;
-        margin-bottom: 24px;
-        box-shadow: 0 6px 20px rgba(36, 71, 78, 0.18);
-    }
-    .main-header h1 {
-        margin: 0;
-        font-size: 28px;
-        font-weight: 700;
-        color: #ffffff;
-        letter-spacing: 0.3px;
-    }
-    .main-header p {
-        margin: 8px 0 0 0;
-        opacity: 0.92;
-        font-size: 15px;
-    }
-
-    /* Hộp hướng dẫn */
-    .guide-box {
-        background-color: #f4faf8;
-        border-left: 5px solid #377375;
-        padding: 15px 20px;
-        border-radius: 0 10px 10px 0;
-        margin-bottom: 20px;
-        font-size: 14.5px;
-        color: #1e3a3f;
-    }
-
-    /* Khung chứa Thanh Tiến Độ Custom (theo mẫu ảnh upload) */
-    .progress-wrapper {
-        background: #ffffff;
-        border: 2px solid #24474e;
-        border-radius: 18px;
-        padding: 22px 26px;
-        margin: 18px 0 24px 0;
-        box-shadow: 0 8px 24px rgba(36, 71, 78, 0.10);
-    }
-
-    .progress-top-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-    }
-
-    .progress-title {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-weight: 700;
-        font-size: 17px;
-        color: #24474e;
-    }
-
-    .progress-percent-badge {
-        background: linear-gradient(90deg, #24474e, #377375);
-        color: #ffffff;
-        font-weight: 800;
-        font-size: 16px;
-        padding: 5px 16px;
-        border-radius: 999px;
-        letter-spacing: 0.8px;
-    }
-
-    /* Spinner tròn đồng bộ tông màu Teal-Mint */
-    .teal-spinner {
-        width: 26px;
-        height: 26px;
-        border: 3.5px solid #c8e6dc;
-        border-top: 3.5px solid #24474e;
-        border-right: 3.5px solid #377375;
-        border-radius: 50%;
-        animation: spin 0.9s linear infinite;
-    }
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    /* Kiểu 1: Thanh Gradient mượt có chữ LOADING... bên trong */
-    .bar-outer-pill {
-        width: 100%;
-        height: 40px;
-        background: #ffffff;
-        border: 3px solid #1e2d2f;
-        border-radius: 12px;
-        padding: 4px;
-        position: relative;
-        overflow: hidden;
-        box-sizing: border-box;
-    }
-    .bar-inner-gradient {
-        height: 100%;
-        border-radius: 7px;
-        background: linear-gradient(90deg, #24474e 0%, #377375 50%, #68b89e 100%);
-        transition: width 0.35s ease;
-    }
-    .bar-center-label {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 15px;
-        letter-spacing: 1.5px;
-        color: #162527;
-        text-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
-        pointer-events: none;
-    }
-
-    /* Kiểu 2: Thanh sọc chéo chuyển động (Striped) */
-    .bar-outer-striped {
-        width: 100%;
-        height: 28px;
-        background: #ffffff;
-        border: 2.5px solid #1e2d2f;
-        border-radius: 999px;
-        padding: 4px;
-        margin-top: 12px;
-        box-sizing: border-box;
-        overflow: hidden;
-    }
-    .bar-inner-striped {
-        height: 100%;
-        border-radius: 999px;
-        background: repeating-linear-gradient(
-            -55deg,
-            #24474e,
-            #24474e 12px,
-            #ffffff 12px,
-            #ffffff 18px,
-            #3f8482 18px,
-            #3f8482 30px,
-            #ffffff 30px,
-            #ffffff 36px,
-            #68b89e 36px,
-            #68b89e 48px
-        );
-        background-size: 68px 68px;
-        animation: moveStripes 1.2s linear infinite;
-        transition: width 0.35s ease;
-    }
-    @keyframes moveStripes {
-        0% { background-position: 0 0; }
-        100% { background-position: 68px 0; }
-    }
-
-    /* Kiểu 3: Các khối phân đoạn (Segmented Blocks) */
-    .segmented-row {
-        display: grid;
-        grid-template-columns: repeat(10, 1fr);
-        gap: 6px;
-        margin-top: 12px;
-        padding: 5px;
-        border: 2.5px solid #1e2d2f;
-        border-radius: 10px;
-        background: #ffffff;
-    }
-    .seg-block {
-        height: 20px;
-        border-radius: 4px;
-        transition: all 0.25s ease;
-    }
-
-    .progress-step-detail {
-        margin-top: 10px;
-        font-size: 14px;
-        color: #375a60;
-        font-weight: 500;
-        display: flex;
-        justify-content: space-between;
-    }
-    </style>
-    """,
+<style>
+.main-header {
+    background: linear-gradient(135deg, #24474e 0%, #377375 55%, #65b89f 100%);
+    padding: 26px 30px;
+    border-radius: 16px;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 6px 20px rgba(36, 71, 78, 0.18);
+}
+.main-header h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+}
+.main-header p {
+    margin: 8px 0 0 0;
+    opacity: 0.92;
+    font-size: 15px;
+}
+.guide-box {
+    background-color: #f4faf8;
+    border-left: 5px solid #377375;
+    padding: 15px 20px;
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 20px;
+    font-size: 14.5px;
+    color: #1e3a3f;
+}
+.progress-wrapper {
+    background: #ffffff;
+    border: 2px solid #24474e;
+    border-radius: 16px;
+    padding: 22px 26px;
+    margin: 16px 0 24px 0;
+    box-shadow: 0 8px 24px rgba(36, 71, 78, 0.10);
+}
+.progress-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+.progress-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    font-size: 17px;
+    color: #24474e;
+}
+.progress-percent-badge {
+    background: linear-gradient(90deg, #24474e, #377375);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 5px 16px;
+    border-radius: 999px;
+    letter-spacing: 0.6px;
+}
+.teal-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3.5px solid #c8e6dc;
+    border-top: 3.5px solid #24474e;
+    border-right: 3.5px solid #377375;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.bar-outer-pill {
+    width: 100%;
+    height: 38px;
+    background: #f1f7f5;
+    border: 2.5px solid #1e2d2f;
+    border-radius: 11px;
+    padding: 4px;
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+}
+.bar-inner-gradient {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #24474e 0%, #377375 50%, #68b89e 100%);
+    transition: width 0.35s ease;
+}
+.bar-center-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    color: #162527;
+    text-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+    pointer-events: none;
+}
+.step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f7fbf9;
+    border: 1px solid #d7eae4;
+    border-radius: 10px;
+    padding: 12px 16px;
+}
+.step-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 4px 0;
+}
+.step-done {
+    color: #1f6f54;
+    font-weight: 600;
+}
+.step-active {
+    color: #24474e;
+    font-weight: 700;
+}
+.step-pending {
+    color: #94a3b8;
+    font-weight: 500;
+}
+.step-badge {
+    font-size: 12.5px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+.badge-done {
+    background: #d1fae5;
+    color: #065f46;
+}
+.badge-active {
+    background: #cfe9e2;
+    color: #1e3a3f;
+}
+.badge-pending {
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+</style>
+""",
     unsafe_allow_html=True,
 )
 
+MAIN_STEPS = [
+    (1, "Bước 1: Đọc dữ liệu Excel gốc & chuẩn hóa kiểu dữ liệu"),
+    (2, "Bước 2: Tạo cột 'Map' & tính Sheet2 (Pivot Nhu cầu vs SL mapping, Tỉ lệ %, NOTE)"),
+    (3, "Bước 3: Tạo Sheet3 (Pivot NCC & lọc năng lực giao > 1 cao nhất)"),
+    (4, "Bước 4: Tạo Sheet 'PO bổ sung' (Làm trắng NCC cũ -> Map NCC ưu tiên từ Sheet3)"),
+    (5, "Bước 5: Xuất file Excel kết quả gồm đầy đủ 4 Sheets"),
+]
 
-def render_custom_progress(placeholder, percent: int, step_title: str, detail_text: str = ""):
+
+def render_custom_progress(
+    placeholder,
+    percent: int,
+    current_step: int,
+    step_title: str,
+    step_notes: dict = None,
+):
     """
-    Hiển thị thanh tiến độ chuẩn phong cách Teal-Mint theo hình mẫu người dùng yêu cầu:
-    - Thanh chính: Gradient đậm -> nhạt kèm chữ LOADING... XX%
-    - Thanh phụ: 10 khối phân đoạn (Segmented Blocks) đổi màu theo từng 10%
+    Hiển thị thanh tiến độ chuẩn phong cách Teal-Mint và danh sách 5 bước chính.
+    Lưu ý: Không thụt lề 4 dấu cách để tránh Markdown hiểu nhầm là khối code HTML.
     """
     percent = max(0, min(100, int(percent)))
-    seg_colors = [
-        "#24474e", "#295259", "#2f5e64", "#366b70", "#3d787b",
-        "#468685", "#4f948e", "#58a194", "#60ad99", "#68b89e",
-    ]
-    active_blocks = percent // 10
-    blocks_html = ""
-    for idx in range(10):
-        if idx < active_blocks:
-            bg = seg_colors[idx]
-            opacity = "1"
-        elif idx == active_blocks and percent % 10 > 0:
-            bg = seg_colors[idx]
-            opacity = "0.45"
+    step_notes = step_notes or {}
+
+    status_label = f"LOADING... {percent}%" if percent < 100 else "HOÀN TẤT 100%"
+    spinner_html = (
+        '<div class="teal-spinner"></div>'
+        if percent < 100
+        else '<span style="font-size:22px;">✅</span>'
+    )
+
+    steps_html_parts = []
+    for step_idx, step_label in MAIN_STEPS:
+        note_str = step_notes.get(step_idx, "")
+        note_display = f" — <span style='font-weight:500;opacity:0.9;'>{note_str}</span>" if note_str else ""
+
+        if percent == 100 or step_idx < current_step:
+            icon = "✅"
+            cls = "step-done"
+            badge = '<span class="step-badge badge-done">Hoàn tất</span>'
+        elif step_idx == current_step:
+            icon = "🔄"
+            cls = "step-active"
+            badge = '<span class="step-badge badge-active">Đang chạy...</span>'
         else:
-            bg = "#e9f2ef"
-            opacity = "1"
-        blocks_html += f'<div class="seg-block" style="background:{bg}; opacity:{opacity};"></div>'
+            icon = "⏳"
+            cls = "step-pending"
+            badge = '<span class="step-badge badge-pending">Chờ xử lý</span>'
 
-    status_label = f"LOADING... {percent}%" if percent < 100 else f"HOÀN TẤT 100%"
-    spinner_html = '<div class="teal-spinner"></div>' if percent < 100 else '<span style="font-size:22px;">✅</span>'
+        steps_html_parts.append(
+            f'<div class="step-item {cls}">'
+            f'<div>{icon} {step_label}{note_display}</div>'
+            f'{badge}'
+            f'</div>'
+        )
 
-    html = f"""
-    <div class="progress-wrapper">
-        <div class="progress-top-row">
-            <div class="progress-title">
-                {spinner_html}
-                <span>{step_title}</span>
-            </div>
-            <div class="progress-percent-badge">{percent}%</div>
-        </div>
+    steps_html = "".join(steps_html_parts)
 
-        <!-- Thanh Gradient chính kèm chữ LOADING... -->
-        <div class="bar-outer-pill">
-            <div class="bar-inner-gradient" style="width: {percent}%;"></div>
-            <div class="bar-center-label">{status_label}</div>
-        </div>
-
-        <!-- Thanh Sọc Chéo Chuyển Động -->
-        <div class="bar-outer-striped">
-            <div class="bar-inner-striped" style="width: {percent}%;"></div>
-        </div>
-
-        <!-- Thanh Khối Phân Đoạn 10 Mức -->
-        <div class="segmented-row">
-            {blocks_html}
-        </div>
-
-        <div class="progress-step-detail">
-            <span>{detail_text}</span>
-            <span>Tiến độ: {percent}/100%</span>
-        </div>
-    </div>
-    """
+    html = (
+        f'<div class="progress-wrapper">'
+        f'<div class="progress-top-row">'
+        f'<div class="progress-title">{spinner_html}<span>{step_title}</span></div>'
+        f'<div class="progress-percent-badge">{percent}%</div>'
+        f'</div>'
+        f'<div class="bar-outer-pill">'
+        f'<div class="bar-inner-gradient" style="width: {percent}%;"></div>'
+        f'<div class="bar-center-label">{status_label}</div>'
+        f'</div>'
+        f'<div class="step-list">{steps_html}</div>'
+        f'</div>'
+    )
     placeholder.markdown(html, unsafe_allow_html=True)
 
 
@@ -281,18 +263,19 @@ REQUIRED_COLUMNS = [
 def run_process_with_progress(uploaded_file, sheet_name, progress_placeholder, threshold_ratio=0.85):
     """
     Thực thi toàn bộ luồng xử lý của process_nhu_cau.py và cập nhật thanh tiến độ % theo thời gian thực.
-    Trả về dict chứa các DataFrame kết quả, file Excel bytes và thống kê.
     """
     t0 = time.time()
+    step_notes = {}
 
     # =========================================================================
-    # BƯỚC 1: Đọc dữ liệu ban đầu & Chuẩn hóa (0% -> 25%)
+    # BƯỚC 1: Đọc dữ liệu ban đầu & Chuẩn hóa (0% -> 20%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        5,
-        "[1/5] Đang đọc dữ liệu từ file Excel gốc...",
-        "Đang nạp dữ liệu vào bộ nhớ...",
+        percent=8,
+        current_step=1,
+        step_title="[1/5] Đang đọc dữ liệu từ file Excel gốc...",
+        step_notes=step_notes,
     )
 
     df = pd.read_excel(uploaded_file, sheet_name=sheet_name)
@@ -306,27 +289,23 @@ def run_process_with_progress(uploaded_file, sheet_name, progress_placeholder, t
             f"Vui lòng kiểm tra lại đúng sheet dữ liệu!"
         )
 
-    render_custom_progress(
-        progress_placeholder,
-        18,
-        "[1/5] Đang chuẩn hóa kiểu dữ liệu chuỗi và số...",
-        f"Đã đọc {total_rows:,} dòng và {total_cols} cột.",
-    )
-
     df["Khu vực mua hàng"] = df["Khu vực mua hàng"].fillna("").astype(str)
     df["Tên sản phẩm"] = df["Tên sản phẩm"].fillna("").astype(str)
     df["Số lượng cần mua"] = pd.to_numeric(df["Số lượng cần mua"], errors="coerce").fillna(0)
     df["SL mapping"] = pd.to_numeric(df["SL mapping"], errors="coerce").fillna(0)
     df["Khả năng giao NCC"] = pd.to_numeric(df["Khả năng giao NCC"], errors="coerce").fillna(0)
 
+    step_notes[1] = f"Đã đọc {total_rows:,} dòng & {total_cols} cột"
+
     # =========================================================================
-    # BƯỚC 2: Tạo cột Map & Tính Sheet2 (Pivot Nhu cầu vs Mapping) (25% -> 50%)
+    # BƯỚC 2: Tạo cột Map & Tính Sheet2 (Pivot Nhu cầu vs Mapping) (20% -> 45%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        30,
-        "[2/5] Đang tạo cột 'Map' và tính toán Sheet2 (Pivot Nhu cầu vs SL mapping)...",
-        "Công thức Map = Trim(Khu vực mua hàng) - Trim(Tên sản phẩm)",
+        percent=30,
+        current_step=2,
+        step_title="[2/5] Đang tạo cột 'Map' và tính toán Sheet2...",
+        step_notes=step_notes,
     )
 
     col_map = df["Khu vực mua hàng"].str.strip() + "-" + df["Tên sản phẩm"].str.strip()
@@ -371,21 +350,18 @@ def run_process_with_progress(uploaded_file, sheet_name, progress_placeholder, t
         note_pos = df.columns.get_loc("Map") + 1
         df.insert(note_pos, "NOTE", note_series)
 
-    render_custom_progress(
-        progress_placeholder,
-        48,
-        "[2/5] Đã hoàn tất Sheet2 & map ngược cột NOTE về Sheet1",
-        f"Sheet2 có {len(pivot2):,} cụm Khu vực - Sản phẩm.",
-    )
+    so_cum_co = int((pivot2["NOTE"] == "Có").sum())
+    step_notes[2] = f"{len(pivot2):,} cụm ({so_cum_co:,} cụm NOTE = 'Có')"
 
     # =========================================================================
-    # BƯỚC 3: Tạo Sheet3 (Pivot NCC & lọc năng lực giao cao nhất) (50% -> 70%)
+    # BƯỚC 3: Tạo Sheet3 (Pivot NCC & lọc năng lực giao cao nhất) (45% -> 65%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        58,
-        "[3/5] Đang tạo Sheet3 (Pivot NCC & lọc Khả năng giao > 1)...",
-        "Sắp xếp theo Map và Max khả năng giao giảm dần (ưu tiên NCC năng lực cao nhất)...",
+        percent=55,
+        current_step=3,
+        step_title="[3/5] Đang tạo Sheet3 (Pivot NCC & lọc năng lực giao > 1)...",
+        step_notes=step_notes,
     )
 
     ncc_clean = df["Tên Chi nhánh nhà cung cấp"].fillna("").astype(str).str.strip()
@@ -418,21 +394,17 @@ def run_process_with_progress(uploaded_file, sheet_name, progress_placeholder, t
     best_ncc_df = pivot3.drop_duplicates(subset=["Map"], keep="first")
     best_ncc_dict = dict(zip(best_ncc_df["Map"], best_ncc_df["Tên Chi nhánh nhà cung cấp"]))
 
-    render_custom_progress(
-        progress_placeholder,
-        70,
-        "[3/5] Đã xác định danh sách NCC ưu tiên năng lực cao nhất",
-        f"Sheet3 có {len(pivot3):,} dòng NCC hợp lệ (Khả năng giao > 1).",
-    )
+    step_notes[3] = f"{len(pivot3):,} dòng NCC hợp lệ (Khả năng giao > 1)"
 
     # =========================================================================
-    # BƯỚC 4: Tạo Sheet "PO bổ sung" (70% -> 85%)
+    # BƯỚC 4: Tạo Sheet "PO bổ sung" (65% -> 85%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        78,
-        "[4/5] Đang tạo Sheet 'PO bổ sung' và map mới NCC ưu tiên...",
-        "Lọc NOTE = 'Có' & Mã PO trống -> Làm trắng NCC cũ -> Map NCC mới từ Sheet3...",
+        percent=75,
+        current_step=4,
+        step_title="[4/5] Đang tạo Sheet 'PO bổ sung' và map mới NCC ưu tiên...",
+        step_notes=step_notes,
     )
 
     ma_po_str = df["Mã PO"].fillna("").astype(str).str.strip()
@@ -452,25 +424,22 @@ def run_process_with_progress(uploaded_file, sheet_name, progress_placeholder, t
     so_dong_po = len(df_po_bo_sung)
     so_dong_co_ncc = int(df_po_bo_sung["Tên Chi nhánh nhà cung cấp"].notna().sum())
 
+    step_notes[4] = f"{so_dong_po:,} dòng (Map NCC mới: {so_dong_co_ncc:,} | Trống: {so_dong_po - so_dong_co_ncc:,})"
+
     # =========================================================================
     # BƯỚC 5: Xuất toàn bộ 4 Sheets ra bộ nhớ Excel (85% -> 100%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        88,
-        "[5/5] Đang kết xuất 4 Sheets ra file Excel chuẩn (.xlsx)...",
-        f"Đang ghi Sheet1 ({len(df):,} dòng), Sheet2, Sheet3 và PO bổ sung ({so_dong_po:,} dòng)...",
+        percent=90,
+        current_step=5,
+        step_title="[5/5] Đang kết xuất 4 Sheets ra file Excel (.xlsx)...",
+        step_notes=step_notes,
     )
 
     output_buffer = io.BytesIO()
     with pd.ExcelWriter(output_buffer, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Sheet1", index=False)
-        render_custom_progress(
-            progress_placeholder,
-            93,
-            "[5/5] Đang ghi Sheet2, Sheet3 và định dạng tỉ lệ %...",
-            "Đã ghi xong Sheet1 -> Đang ghi Sheet2, Sheet3, PO bổ sung...",
-        )
         pivot2.to_excel(writer, sheet_name="Sheet2", index=False)
         pivot3.to_excel(writer, sheet_name="Sheet3", index=False)
         df_po_bo_sung.to_excel(writer, sheet_name="PO bổ sung", index=False)
@@ -483,12 +452,14 @@ def run_process_with_progress(uploaded_file, sheet_name, progress_placeholder, t
 
     output_buffer.seek(0)
     total_time = time.time() - t0
+    step_notes[5] = f"Hoàn tất đóng gói 4 Sheets trong {total_time:.1f}s"
 
     render_custom_progress(
         progress_placeholder,
-        100,
-        f"XỬ LÝ HOÀN TẤT TRONG {total_time:.1f} GIÂY!",
-        f"Tổng PO bổ sung: {so_dong_po:,} dòng (Map được NCC mới: {so_dong_co_ncc:,} | Trống: {so_dong_po - so_dong_co_ncc:,})",
+        percent=100,
+        current_step=5,
+        step_title=f"XỬ LÝ HOÀN TẤT TRONG {total_time:.1f} GIÂY!",
+        step_notes=step_notes,
     )
 
     return {
@@ -497,10 +468,11 @@ def run_process_with_progress(uploaded_file, sheet_name, progress_placeholder, t
         "df_sheet3": pivot3,
         "df_po_bo_sung": df_po_bo_sung,
         "excel_bytes": output_buffer.getvalue(),
+        "step_notes": step_notes,
         "stats": {
             "total_rows": total_rows,
             "sheet2_rows": len(pivot2),
-            "sheet2_note_co": int((pivot2["NOTE"] == "Có").sum()),
+            "sheet2_note_co": so_cum_co,
             "sheet3_rows": len(pivot3),
             "po_total": so_dong_po,
             "po_mapped_ncc": so_dong_co_ncc,
@@ -544,23 +516,23 @@ with st.sidebar:
 # =============================================================================
 st.markdown(
     """
-    <div class="main-header">
-        <h1>📊 Hệ Thống Kiểm Tra Nhu Cầu & Tạo PO Bổ Sung</h1>
-        <p>Tự động phân tích tỉ lệ Mapping/Nhu cầu, lọc Nhà Cung Cấp năng lực cao nhất và xuất danh sách PO bổ sung</p>
-    </div>
-    """,
+<div class="main-header">
+    <h1>📊 Hệ Thống Kiểm Tra Nhu Cầu & Tạo PO Bổ Sung</h1>
+    <p>Tự động phân tích tỉ lệ Mapping/Nhu cầu, lọc Nhà Cung Cấp năng lực cao nhất và xuất danh sách PO bổ sung</p>
+</div>
+""",
     unsafe_allow_html=True,
 )
 
 st.markdown(
     """
-    <div class="guide-box">
-        💡 <b>Hướng dẫn nhanh:</b> Tải lên file Excel nhu cầu mua hàng theo siêu thị (chứa các cột:
-        <code>Khu vực mua hàng</code>, <code>Tên sản phẩm</code>, <code>Số lượng cần mua</code>,
-        <code>SL mapping</code>, <code>Khả năng giao NCC</code>, <code>Tên Chi nhánh nhà cung cấp</code>, <code>Mã PO</code>),
-        sau đó nhấn <b>Bắt đầu Xử Lý Nhu Cầu</b>.
-    </div>
-    """,
+<div class="guide-box">
+    💡 <b>Hướng dẫn nhanh:</b> Tải lên file Excel nhu cầu mua hàng theo siêu thị (chứa các cột:
+    <code>Khu vực mua hàng</code>, <code>Tên sản phẩm</code>, <code>Số lượng cần mua</code>,
+    <code>SL mapping</code>, <code>Khả năng giao NCC</code>, <code>Tên Chi nhánh nhà cung cấp</code>, <code>Mã PO</code>),
+    sau đó nhấn <b>Bắt đầu Xử Lý Nhu Cầu</b>.
+</div>
+""",
     unsafe_allow_html=True,
 )
 
@@ -582,10 +554,9 @@ if uploaded_file is not None:
             st.write("")
             run_btn = st.button("🚀 Bắt đầu Xử Lý Nhu Cầu", type="primary", use_container_width=True)
 
-        # Reset kết quả cũ nếu đổi file
         file_key = f"{uploaded_file.name}_{uploaded_file.size}_{selected_sheet}_{threshold_pct}"
         if st.session_state.get("last_file_key") != file_key and not run_btn:
-            st.info("👆 Nhấn nút **🚀 Bắt đầu Xử Lý Nhu Cầu** để chạy chương trình và theo dõi thanh tiến độ.")
+            st.info("👆 Nhấn nút **🚀 Bắt đầu Xử Lý Nhu Cầu** để chạy chương trình và theo dõi tiến độ.")
 
         progress_placeholder = st.empty()
 
@@ -606,9 +577,10 @@ if uploaded_file is not None:
             if not run_btn:
                 render_custom_progress(
                     progress_placeholder,
-                    100,
-                    f"ĐÃ XỬ LÝ HOÀN TẤT ({stats['elapsed_sec']:.1f} GIÂY)",
-                    f"Tổng PO bổ sung: {stats['po_total']:,} dòng | Đã map NCC mới: {stats['po_mapped_ncc']:,} dòng",
+                    percent=100,
+                    current_step=5,
+                    step_title=f"XỬ LÝ HOÀN TẤT TRONG {stats['elapsed_sec']:.1f} GIÂY!",
+                    step_notes=res.get("step_notes", {}),
                 )
 
             # Nút tải file nổi bật ngay phía trên
