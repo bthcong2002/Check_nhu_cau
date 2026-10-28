@@ -1,0 +1,30 @@
+name: Keep Streamlit Alive
+
+on:
+  schedule:
+    # Chạy mỗi 3 tiếng một lần (vào phút thứ 0 của các khung giờ 0, 3, 6, 9, 12, 15, 18, 21 UTC)
+    - cron: '0 */3 * * *'
+  workflow_dispatch: # Cho phép bấm chạy thủ công kiểm tra bất kỳ lúc nào
+
+jobs:
+  ping-app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit App
+        env:
+          SECRET_APP_URL: ${{ secrets.STREAMLIT_APP_URL }}
+        run: |
+          # Ưu tiên lấy từ GitHub Secret STREAMLIT_APP_URL, nếu chưa cài thì dùng link mặc định bên dưới
+          APP_URL="${SECRET_APP_URL:-https://check-nhu-cau-mwg.streamlit.app/}"
+          echo "Đang ping ứng dụng tại: $APP_URL"
+          
+          # Sử dụng curl với User-Agent trình duyệt để đánh thức Streamlit Cloud
+          STATUS_CODE=$(curl -s -L -o /dev/null -w "%{http_code}" -H "User-Agent: Mozilla/5.0" "$APP_URL" || true)
+          echo "HTTP Status Code trả về: $STATUS_CODE"
+          
+          # Status 200, 302, 303 đều là máy chủ Streamlit đã tiếp nhận và phản hồi thành công (đánh thức app)
+          if [ "$STATUS_CODE" -ge 200 ] && [ "$STATUS_CODE" -lt 400 ]; then
+            echo "✅ Ứng dụng Streamlit đang phản hồi và được đánh thức thành công!"
+          else
+            echo "⚠️ Mã phản hồi: $STATUS_CODE (Request vẫn kích hoạt máy chủ Streamlit)"
+          fi

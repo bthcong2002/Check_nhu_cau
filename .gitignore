@@ -1,0 +1,8 @@
+# Bỏ qua các thư mục dữ liệu Excel nặng khi đẩy lên GitHub
+Nhu cầu*/
+*.xlsx
+!Template.xlsx
+__pycache__/
+*.pyc
+.DS_Store
+.env
