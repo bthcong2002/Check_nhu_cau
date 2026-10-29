@@ -15,7 +15,7 @@ jobs:
           SECRET_APP_URL: ${{ secrets.STREAMLIT_APP_URL }}
         run: |
           # Ưu tiên lấy từ GitHub Secret STREAMLIT_APP_URL, nếu chưa cài thì dùng link mặc định bên dưới
-          APP_URL="${SECRET_APP_URL:-https://check-nhu-cau-mwg.streamlit.app/}"
+          APP_URL="${SECRET_APP_URL:-https://checknhucau-8yffey6edkxsixc6bxujak.streamlit.app/}"
           echo "Đang ping ứng dụng tại: $APP_URL"
           
           # Sử dụng curl với User-Agent trình duyệt để đánh thức Streamlit Cloud
