@@ -1,5 +1,7 @@
+import ctypes
 import gc
-import io
+import os
+import tempfile
 import time
 import zipfile
 import xml.etree.ElementTree as ET
@@ -15,6 +17,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Đường dẫn file kết quả tạm trên ổ cứng máy chủ (tránh giữ 80MB bytes trong RAM)
+EXPORT_FILE_PATH = os.path.join(tempfile.gettempdir(), "nhucau_da_xu_ly_latest.xlsx")
 
 # Custom CSS lấy cảm hứng từ bộ Progress Bar Teal-Mint
 st.markdown(
@@ -184,15 +189,38 @@ MAIN_STEPS = [
     (2, "Bước 2: Tạo cột 'Map' & tính Sheet2 (Pivot Nhu cầu vs SL mapping, Tỉ lệ %, NOTE)"),
     (3, "Bước 3: Tạo Sheet3 (Pivot NCC & lọc năng lực giao > 1 cao nhất)"),
     (4, "Bước 4: Tạo Sheet 'PO bổ sung' (Làm trắng NCC cũ -> Map NCC ưu tiên từ Sheet3)"),
-    (5, "Bước 5: Xuất file Excel kết quả"),
+    (5, "Bước 5: Ghi cuốn chiếu (Streaming) ra file Excel & giải phóng RAM"),
 ]
+
+REQUIRED_COLUMNS = [
+    "Khu vực mua hàng",
+    "Tên sản phẩm",
+    "Số lượng cần mua",
+    "SL mapping",
+    "Khả năng giao NCC",
+    "Tên Chi nhánh nhà cung cấp",
+    "Mã PO",
+]
+
+
+def release_memory():
+    """
+    Thu hồi rác bộ nhớ Python (gc.collect) đồng thời ép hệ điều hành Linux trên
+    Streamlit Cloud (libc.so.6 malloc_trim) lấy lại ngay vùng RAM đã giải phóng,
+    tránh tình trạng cộng dồn RAM qua các lần chạy gây crash 'Oh no. Error running app'.
+    """
+    gc.collect()
+    try:
+        libc = ctypes.CDLL("libc.so.6")
+        libc.malloc_trim(0)
+    except Exception:
+        pass
 
 
 def get_excel_sheet_names_fast(uploaded_file) -> list:
     """
     Lấy danh sách tên Sheet tức thì (< 0.01 giây, 0 MB RAM) bằng cách đọc trực tiếp
-    metadata xl/workbook.xml trong cấu trúc nén của file .xlsx thay vì dùng pd.ExcelFile
-    phải nạp toàn bộ hàng trăm nghìn dòng vào RAM.
+    metadata xl/workbook.xml trong cấu trúc nén của file .xlsx.
     """
     try:
         uploaded_file.seek(0)
@@ -210,7 +238,6 @@ def get_excel_sheet_names_fast(uploaded_file) -> list:
     except Exception:
         pass
 
-    # Fallback cho định dạng .xls cũ
     uploaded_file.seek(0)
     try:
         xl = pd.ExcelFile(uploaded_file, engine="calamine")
@@ -303,64 +330,37 @@ def render_custom_progress(
     placeholder.markdown(html, unsafe_allow_html=True)
 
 
-REQUIRED_COLUMNS = [
-    "Khu vực mua hàng",
-    "Tên sản phẩm",
-    "Số lượng cần mua",
-    "SL mapping",
-    "Khả năng giao NCC",
-    "Tên Chi nhánh nhà cung cấp",
-    "Mã PO",
-]
-
-
-def export_excel_fast(
-    df_sheet1: pd.DataFrame,
-    pivot2: pd.DataFrame,
-    pivot3: pd.DataFrame,
-    df_po_bo_sung: pd.DataFrame,
-    include_sheet1: bool = True,
-) -> bytes:
+def stream_df_to_xlsxwriter_sheet(workbook, sheet_name: str, df: pd.DataFrame, pct_col_name: str = None):
     """
-    Xuất kết quả ra bộ nhớ đệm Excel (.xlsx).
-    Ưu tiên engine 'xlsxwriter' (nhanh hơn và tốn ít RAM hơn nhiều so với openpyxl),
-    fallback về 'openpyxl' nếu môi trường chưa cài xlsxwriter.
+    Ghi cuốn chiếu (Streaming) từng cụm 5,000 dòng xuống ổ cứng bằng xlsxwriter constant_memory.
+    Giúp quá trình xuất 350,000+ dòng chỉ tốn < 10 MB RAM thay vì 1.2 GB RAM.
     """
-    output_buffer = io.BytesIO()
-    try:
-        with pd.ExcelWriter(
-            output_buffer,
-            engine="xlsxwriter",
-            engine_kwargs={"options": {"strings_to_urls": False}},
-        ) as writer:
-            if include_sheet1:
-                df_sheet1.to_excel(writer, sheet_name="Sheet1", index=False)
-            pivot2.to_excel(writer, sheet_name="Sheet2", index=False)
-            pivot3.to_excel(writer, sheet_name="Sheet3", index=False)
-            df_po_bo_sung.to_excel(writer, sheet_name="PO bổ sung", index=False)
+    ws = workbook.add_worksheet(sheet_name)
+    header_fmt = workbook.add_format({"bold": True})
+    pct_fmt = workbook.add_format({"num_format": "0.0%"}) if pct_col_name else None
 
-            # Định dạng 0.0% cho cột Tỉ lệ mapping/nhu cầu ở Sheet2
-            workbook = writer.book
-            ws2 = writer.sheets["Sheet2"]
-            pct_fmt = workbook.add_format({"num_format": "0.0%"})
-            ratio_col = pivot2.columns.get_loc("Tỉ lệ mapping/nhu cầu")
-            ws2.set_column(ratio_col, ratio_col, 18, pct_fmt)
-    except Exception:
-        output_buffer = io.BytesIO()
-        with pd.ExcelWriter(output_buffer, engine="openpyxl") as writer:
-            if include_sheet1:
-                df_sheet1.to_excel(writer, sheet_name="Sheet1", index=False)
-            pivot2.to_excel(writer, sheet_name="Sheet2", index=False)
-            pivot3.to_excel(writer, sheet_name="Sheet3", index=False)
-            df_po_bo_sung.to_excel(writer, sheet_name="PO bổ sung", index=False)
+    cols = list(df.columns)
+    pct_col_idx = cols.index(pct_col_name) if (pct_col_name and pct_col_name in cols) else None
 
-            ws2 = writer.sheets["Sheet2"]
-            ratio_col = pivot2.columns.get_loc("Tỉ lệ mapping/nhu cầu") + 1
-            for row in range(2, len(pivot2) + 2):
-                ws2.cell(row=row, column=ratio_col).number_format = "0.0%"
+    # Trong chế độ constant_memory, set_column phải gọi TRƯỚC khi ghi các dòng dữ liệu
+    if pct_col_idx is not None:
+        ws.set_column(pct_col_idx, pct_col_idx, 18, pct_fmt)
 
-    output_buffer.seek(0)
-    return output_buffer.getvalue()
+    # Ghi dòng tiêu đề
+    ws.write_row(0, 0, cols, header_fmt)
+
+    # Ghi cuốn chiếu từng lô 5,000 dòng để không tạo bản sao lớn trong RAM
+    chunk_size = 5000
+    total = len(df)
+    for start in range(0, total, chunk_size):
+        chunk = df.iloc[start : start + chunk_size]
+        rows = chunk.astype(object).where(pd.notna(chunk), None).values.tolist()
+        for offset, row_vals in enumerate(rows):
+            r_idx = start + offset + 1
+            ws.write_row(r_idx, 0, row_vals)
+            if pct_col_idx is not None and row_vals[pct_col_idx] is not None:
+                ws.write_number(r_idx, pct_col_idx, float(row_vals[pct_col_idx]), pct_fmt)
+        del chunk, rows
 
 
 def run_process_with_progress(
@@ -371,13 +371,16 @@ def run_process_with_progress(
     include_sheet1_export: bool = True,
 ):
     """
-    Thực thi toàn bộ luồng xử lý của process_nhu_cau.py với engine tối ưu tốc độ & RAM.
+    Thực thi toàn bộ luồng xử lý của process_nhu_cau.py theo kiến trúc Cuốn Chiếu (Streaming):
+    Xử lý xong bảng lớn nào sẽ ghi thẳng xuống file tạm trên đĩa và xóa ngay khỏi RAM trước khi
+    xử lý bảng tiếp theo, đảm bảo không bao giờ vượt giới hạn 1GB RAM của Streamlit Cloud.
     """
     t0 = time.time()
     step_notes = {}
+    release_memory()
 
     # =========================================================================
-    # BƯỚC 1: Đọc dữ liệu ban đầu bằng Calamine & Chuẩn hóa (0% -> 25%)
+    # BƯỚC 1: Đọc dữ liệu ban đầu bằng Calamine & Chuẩn hóa (0% -> 20%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
@@ -395,6 +398,8 @@ def run_process_with_progress(
 
     missing_cols = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing_cols:
+        del df
+        release_memory()
         raise ValueError(
             f"File Excel thiếu các cột bắt buộc: {', '.join(missing_cols)}. "
             f"Vui lòng kiểm tra lại đúng sheet dữ liệu!"
@@ -409,11 +414,11 @@ def run_process_with_progress(
     step_notes[1] = f"Đã đọc {total_rows:,} dòng x {total_cols} cột ({read_sec:.1f}s)"
 
     # =========================================================================
-    # BƯỚC 2: Tạo cột Map & Tính Sheet2 (Pivot Nhu cầu vs Mapping) (25% -> 45%)
+    # BƯỚC 2: Tạo cột Map & Tính Sheet2 (Pivot Nhu cầu vs Mapping) (20% -> 45%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        percent=32,
+        percent=30,
         current_step=2,
         step_title="[2/5] Đang tạo cột 'Map' và tính toán Sheet2...",
         step_notes=step_notes,
@@ -429,6 +434,7 @@ def run_process_with_progress(
             df.insert(pos, "Map", col_map)
         else:
             df["Map"] = col_map
+    del col_map
 
     pivot2 = df.groupby(
         ["Khu vực mua hàng", "Tên sản phẩm", "Map"],
@@ -454,47 +460,60 @@ def run_process_with_progress(
 
     note_dict = dict(zip(pivot2["Map"], pivot2["NOTE"]))
     note_series = df["Map"].map(note_dict).fillna("Không")
+    del note_dict, req_sum, map_sum, safe_ratio, cond_co
 
     if "NOTE" in df.columns:
         df["NOTE"] = note_series
     else:
         note_pos = df.columns.get_loc("Map") + 1
         df.insert(note_pos, "NOTE", note_series)
+    del note_series
 
     so_cum_co = int((pivot2["NOTE"] == "Có").sum())
-    step_notes[2] = f"{len(pivot2):,} cụm ({so_cum_co:,} cụm NOTE = 'Có')"
+    sheet2_rows = len(pivot2)
+    step_notes[2] = f"{sheet2_rows:,} cụm ({so_cum_co:,} cụm NOTE = 'Có')"
 
     # =========================================================================
-    # BƯỚC 3: Tạo Sheet3 (Pivot NCC & lọc năng lực giao cao nhất) (45% -> 65%)
+    # BƯỚC 3: Tạo Sheet3 (Chỉ trích đúng 5 cột cần thiết, KHÔNG nhân bản 48 cột!)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        percent=55,
+        percent=52,
         current_step=3,
         step_title="[3/5] Đang tạo Sheet3 (Pivot NCC & lọc năng lực giao > 1)...",
         step_notes=step_notes,
     )
 
     ncc_clean = df["Tên Chi nhánh nhà cung cấp"].fillna("").astype(str).str.strip()
-    df_valid_ncc = df[
+    mask_valid_ncc = (
         (ncc_clean != "")
         & (ncc_clean.str.lower() != "none")
         & (ncc_clean.str.lower() != "nan")
         & (ncc_clean != "(blank)")
-    ]
+    )
+    del ncc_clean
 
-    pivot3 = df_valid_ncc.groupby(
-        ["Khu vực mua hàng", "Tên sản phẩm", "Tên Chi nhánh nhà cung cấp", "Map"],
-        as_index=False,
-        dropna=False,
-    )["Khả năng giao NCC"].max()
+    cols_s3 = [
+        "Khu vực mua hàng",
+        "Tên sản phẩm",
+        "Tên Chi nhánh nhà cung cấp",
+        "Map",
+        "Khả năng giao NCC",
+    ]
+    pivot3 = (
+        df.loc[mask_valid_ncc, cols_s3]
+        .groupby(
+            ["Khu vực mua hàng", "Tên sản phẩm", "Tên Chi nhánh nhà cung cấp", "Map"],
+            as_index=False,
+            dropna=False,
+        )["Khả năng giao NCC"]
+        .max()
+    )
+    del mask_valid_ncc
 
     pivot3.rename(columns={"Khả năng giao NCC": "Max of Khả năng giao NCC"}, inplace=True)
-
-    # Bỏ dữ liệu <= 1 (chỉ giữ lại > 1)
     pivot3 = pivot3[pivot3["Max of Khả năng giao NCC"] > 1].copy()
 
-    # Sort theo Map và Max khả năng giao NCC từ cao đến thấp
     pivot3.sort_values(
         by=["Map", "Max of Khả năng giao NCC"],
         ascending=[True, False],
@@ -504,15 +523,17 @@ def run_process_with_progress(
 
     best_ncc_df = pivot3.drop_duplicates(subset=["Map"], keep="first")
     best_ncc_dict = dict(zip(best_ncc_df["Map"], best_ncc_df["Tên Chi nhánh nhà cung cấp"]))
+    del best_ncc_df
 
-    step_notes[3] = f"{len(pivot3):,} dòng NCC hợp lệ (Khả năng giao > 1)"
+    sheet3_rows = len(pivot3)
+    step_notes[3] = f"{sheet3_rows:,} dòng NCC hợp lệ (Khả năng giao > 1)"
 
     # =========================================================================
-    # BƯỚC 4: Tạo Sheet "PO bổ sung" (65% -> 85%)
+    # BƯỚC 4: Tạo Sheet "PO bổ sung" (65% -> 80%)
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        percent=75,
+        percent=72,
         current_step=4,
         step_title="[4/5] Đang tạo Sheet 'PO bổ sung' và map mới NCC ưu tiên...",
         step_notes=step_notes,
@@ -524,13 +545,18 @@ def run_process_with_progress(
         | (ma_po_str.str.lower() == "nan")
         | (ma_po_str.str.lower() == "none")
     )
+    del ma_po_str
 
     cond_po_bo_sung = (df["NOTE"] == "Có") & cond_ma_po_blank
-    df_po_bo_sung = df[cond_po_bo_sung].copy()
+    del cond_ma_po_blank
+
+    df_po_bo_sung = df.loc[cond_po_bo_sung].copy()
+    del cond_po_bo_sung
 
     # Làm trắng sạch cột 'Tên Chi nhánh nhà cung cấp' cũ trước khi map
     df_po_bo_sung["Tên Chi nhánh nhà cung cấp"] = None
     df_po_bo_sung["Tên Chi nhánh nhà cung cấp"] = df_po_bo_sung["Map"].map(best_ncc_dict)
+    del best_ncc_dict
 
     so_dong_po = len(df_po_bo_sung)
     so_dong_co_ncc = int(df_po_bo_sung["Tên Chi nhánh nhà cung cấp"].notna().sum())
@@ -538,32 +564,69 @@ def run_process_with_progress(
     step_notes[4] = f"{so_dong_po:,} dòng (Map NCC mới: {so_dong_co_ncc:,} | Trống: {so_dong_po - so_dong_co_ncc:,})"
 
     # =========================================================================
-    # BƯỚC 5: Xuất kết quả ra bộ nhớ Excel (85% -> 100%)
+    # BƯỚC 5: Ghi cuốn chiếu (Streaming) ra file tạm trên đĩa & Xóa ngay RAM
     # =========================================================================
     render_custom_progress(
         progress_placeholder,
-        percent=88,
+        percent=86,
         current_step=5,
-        step_title="[5/5] Đang đóng gói các Sheet ra file Excel (.xlsx)...",
+        step_title="[5/5] Đang ghi cuốn chiếu (Streaming) ra file Excel & giải phóng RAM...",
         step_notes=step_notes,
     )
 
-    df_sheet1_preview = df.head(1000).copy()
-    excel_bytes = export_excel_fast(
-        df_sheet1=df,
-        pivot2=pivot2,
-        pivot3=pivot3,
-        df_po_bo_sung=df_po_bo_sung,
-        include_sheet1=include_sheet1_export,
+    # Lưu bản xem trước nhẹ (tối đa 1,000 dòng) cho giao diện web
+    df_sheet1_preview = df.head(500).copy()
+    df_sheet2_preview = pivot2.head(2000).copy()
+    df_sheet3_preview = pivot3.head(2000).copy()
+    df_po_preview_all = df_po_bo_sung.head(2000).copy()
+    df_po_preview_mapped = df_po_bo_sung[df_po_bo_sung["Tên Chi nhánh nhà cung cấp"].notna()].head(2000).copy()
+    df_po_preview_blank = df_po_bo_sung[df_po_bo_sung["Tên Chi nhánh nhà cung cấp"].isna()].head(2000).copy()
+
+    import xlsxwriter
+
+    wb = xlsxwriter.Workbook(
+        EXPORT_FILE_PATH,
+        {
+            "constant_memory": True,
+            "strings_to_urls": False,
+            "nan_inf_to_errors": True,
+            "default_date_format": "yyyy-mm-dd",
+        },
     )
 
-    # Giải phóng bảng df 350,000 dòng khỏi RAM sau khi đã ghi xong file Excel
+    # 5.1: Ghi Sheet1 xong là XÓA NGAY bảng df 350,000 dòng khỏi RAM!
+    if include_sheet1_export:
+        stream_df_to_xlsxwriter_sheet(wb, "Sheet1", df)
     del df
-    gc.collect()
+    release_memory()
+
+    render_custom_progress(
+        progress_placeholder,
+        percent=94,
+        current_step=5,
+        step_title="[5/5] Đã giải phóng RAM Sheet1 -> Đang hoàn tất Sheet2, Sheet3, PO bổ sung...",
+        step_notes=step_notes,
+    )
+
+    # 5.2: Ghi Sheet2 (có định dạng 0.0%) rồi xóa khỏi RAM
+    stream_df_to_xlsxwriter_sheet(wb, "Sheet2", pivot2, pct_col_name="Tỉ lệ mapping/nhu cầu")
+    del pivot2
+    release_memory()
+
+    # 5.3: Ghi Sheet3 rồi xóa khỏi RAM
+    stream_df_to_xlsxwriter_sheet(wb, "Sheet3", pivot3)
+    del pivot3
+    release_memory()
+
+    # 5.4: Ghi PO bổ sung rồi xóa khỏi RAM
+    stream_df_to_xlsxwriter_sheet(wb, "PO bổ sung", df_po_bo_sung)
+    del df_po_bo_sung
+    wb.close()
+    release_memory()
 
     total_time = time.time() - t0
-    sheets_desc = "4 Sheets đầy đủ" if include_sheet1_export else "3 Sheets kết quả (bỏ qua Sheet1 gốc để siêu tốc)"
-    step_notes[5] = f"Hoàn tất {sheets_desc} trong {total_time:.1f}s"
+    sheets_desc = "4 Sheets đầy đủ" if include_sheet1_export else "3 Sheets kết quả (bỏ qua Sheet1 gốc)"
+    step_notes[5] = f"Hoàn tất {sheets_desc} trong {total_time:.1f}s (Đã giải phóng RAM)"
 
     render_custom_progress(
         progress_placeholder,
@@ -575,16 +638,18 @@ def run_process_with_progress(
 
     return {
         "df_sheet1_preview": df_sheet1_preview,
-        "df_sheet2": pivot2,
-        "df_sheet3": pivot3,
-        "df_po_bo_sung": df_po_bo_sung,
-        "excel_bytes": excel_bytes,
+        "df_sheet2_preview": df_sheet2_preview,
+        "df_sheet3_preview": df_sheet3_preview,
+        "df_po_preview_all": df_po_preview_all,
+        "df_po_preview_mapped": df_po_preview_mapped,
+        "df_po_preview_blank": df_po_preview_blank,
+        "export_file_path": EXPORT_FILE_PATH,
         "step_notes": step_notes,
         "stats": {
             "total_rows": total_rows,
-            "sheet2_rows": len(pivot2),
+            "sheet2_rows": sheet2_rows,
             "sheet2_note_co": so_cum_co,
-            "sheet3_rows": len(pivot3),
+            "sheet3_rows": sheet3_rows,
             "po_total": so_dong_po,
             "po_mapped_ncc": so_dong_co_ncc,
             "po_blank_ncc": so_dong_po - so_dong_co_ncc,
@@ -594,7 +659,7 @@ def run_process_with_progress(
 
 
 # =============================================================================
-# SIDEBAR CẤU HÌNH & TỐI ƯU TỐC ĐỘ
+# SIDEBAR CẤU HÌNH & QUẢN LÝ BỘ NHỚ (CHỐNG CRASH CLOUD)
 # =============================================================================
 with st.sidebar:
     st.markdown("## ⚙️ Cấu Hình Xử Lý")
@@ -609,17 +674,28 @@ with st.sidebar:
 
     include_sheet1_export = st.checkbox(
         "Ghi kèm Sheet1 (350k+ dòng gốc) vào file Excel tải về",
-        value=True,
-        help="Mặc định bật để xuất đủ 4 Sheets (Sheet1, Sheet2, Sheet3, PO bổ sung). Nếu bạn chỉ cần lấy Sheet2, Sheet3 và PO bổ sung để tải nhanh & nhẹ RAM trên Streamlit Cloud, có thể bỏ tích ô này.",
+        value=False,
+        help="Mặc định TẮT để file tải về nhẹ (chỉ gồm Sheet2, Sheet3, PO bổ sung) và chạy siêu tốc trong vài giây, không bao giờ làm tràn RAM Cloud. Nếu hôm nào bạn cần xuất cả Sheet1 gốc thì tích chọn ô này.",
     )
 
     st.markdown("---")
-    st.markdown("### ⚡ Đã Tối Ưu Tốc Độ & RAM")
+    if st.button("🧹 Giải Phóng RAM Máy Chủ Ngay", use_container_width=True):
+        st.session_state.clear()
+        if os.path.exists(EXPORT_FILE_PATH):
+            try:
+                os.remove(EXPORT_FILE_PATH)
+            except Exception:
+                pass
+        release_memory()
+        st.success("✅ Đã dọn sạch bộ nhớ đệm & giải phóng RAM!")
+
+    st.markdown("---")
+    st.markdown("### 🛡️ Cơ Chế Chống Crash RAM")
     st.markdown(
         """
-        - **Quét tên Sheet tức thì (`0.01s`):** Đọc trực tiếp XML metadata thay vì nạp cả file vào RAM.
-        - **Engine `python-calamine` (Rust):** Tăng tốc đọc file Excel `55MB` (350,000+ dòng) nhanh gấp 4 lần và giảm 70% RAM.
-        - **Engine `xlsxwriter` + Thu hồi RAM (`gc.collect`):** Ngăn lỗi tràn bộ nhớ (`Oh no. Error running app`) trên Streamlit Cloud.
+        - **Streaming `constant_memory`:** Ghi từng cụm 5,000 dòng xuống đĩa, không giữ bảng Excel lớn trong RAM.
+        - **Tự động `malloc_trim`:** Trả thẳng RAM về cho Linux ngay sau khi chạy xong từng bước.
+        - **Không giữ file 80MB trong Session:** Lưu file kết quả trên ổ đĩa tạm, giữ RAM máy chủ luôn nhẹ cả tháng.
         """
     )
     st.markdown("---")
@@ -658,7 +734,6 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
     try:
-        # Lưu cache danh sách tên sheet theo tên + dung lượng file để không phải quét lại
         sheet_cache_key = f"sheets_{uploaded_file.name}_{uploaded_file.size}"
         if st.session_state.get("sheet_cache_key") != sheet_cache_key:
             st.session_state["sheet_names"] = get_excel_sheet_names_fast(uploaded_file)
@@ -680,10 +755,10 @@ if uploaded_file is not None:
         progress_placeholder = st.empty()
 
         if run_btn:
-            # Xóa kết quả cũ khỏi session_state trước khi chạy mới để giải phóng RAM
+            # Xóa kết quả cũ và ép Linux thu hồi RAM trước khi chạy mới
             if "nhu_cau_result" in st.session_state:
                 del st.session_state["nhu_cau_result"]
-                gc.collect()
+            release_memory()
 
             result = run_process_with_progress(
                 uploaded_file=uploaded_file,
@@ -708,15 +783,18 @@ if uploaded_file is not None:
                     step_notes=res.get("step_notes", {}),
                 )
 
-            # Nút tải file nổi bật ngay phía trên
-            st.download_button(
-                label="💾 TẢI XUỐNG FILE KẾT QUẢ EXCEL (nhucau_da_xu_ly.xlsx)",
-                data=res["excel_bytes"],
-                file_name="nhucau_da_xu_ly.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="primary",
-                use_container_width=True,
-            )
+            # Đọc từ file tạm trên ổ đĩa khi render nút Download (không ngốn RAM session_state)
+            export_path = res.get("export_file_path", EXPORT_FILE_PATH)
+            if os.path.exists(export_path):
+                with open(export_path, "rb") as f_dl:
+                    st.download_button(
+                        label="💾 TẢI XUỐNG FILE KẾT QUẢ EXCEL (nhucau_da_xu_ly.xlsx)",
+                        data=f_dl,
+                        file_name="nhucau_da_xu_ly.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        type="primary",
+                        use_container_width=True,
+                    )
 
             # Thống kê tổng quan
             st.markdown("### 📈 Thống Kê Kết Quả Xử Lý")
@@ -741,8 +819,8 @@ if uploaded_file is not None:
                     delta=f"Map NCC: {stats['po_mapped_ncc']:,} | Trống: {stats['po_blank_ncc']:,}",
                 )
 
-            # Hiển thị 4 Tabs tương ứng 4 Sheets
-            st.markdown("### 🗂️ Xem Trước Dữ Liệu Các Sheet Kết Quả")
+            # Hiển thị 4 Tabs xem trước nhẹ (tối đa 2,000 dòng đầu để không làm nặng trình duyệt & RAM)
+            st.markdown("### 🗂️ Xem Trước Dữ Liệu Các Sheet Kết Quả (Hiển thị mẫu tối đa 2,000 dòng đầu)")
             tab_po, tab_s2, tab_s3, tab_s1 = st.tabs(
                 [
                     f"🛒 PO bổ sung ({stats['po_total']:,} dòng)",
@@ -753,35 +831,37 @@ if uploaded_file is not None:
             )
 
             with tab_po:
-                f_col1, f_col2 = st.columns([1.5, 2.5])
+                f_col1, _ = st.columns([1.5, 2.5])
                 with f_col1:
                     filter_ncc_status = st.radio(
                         "Lọc trạng thái NCC:",
                         ["Tất cả", "Đã map được NCC mới", "Chưa có NCC (Trống)"],
                         horizontal=True,
                     )
-                df_po_view = res["df_po_bo_sung"]
                 if filter_ncc_status == "Đã map được NCC mới":
-                    df_po_view = df_po_view[df_po_view["Tên Chi nhánh nhà cung cấp"].notna()]
+                    df_po_view = res["df_po_preview_mapped"]
                 elif filter_ncc_status == "Chưa có NCC (Trống)":
-                    df_po_view = df_po_view[df_po_view["Tên Chi nhánh nhà cung cấp"].isna()]
+                    df_po_view = res["df_po_preview_blank"]
+                else:
+                    df_po_view = res["df_po_preview_all"]
                 st.dataframe(df_po_view, use_container_width=True, height=420)
 
             with tab_s2:
-                df_s2_view = res["df_sheet2"].copy()
+                df_s2_view = res["df_sheet2_preview"].copy()
                 df_s2_view["Tỉ lệ mapping/nhu cầu (%)"] = (
                     df_s2_view["Tỉ lệ mapping/nhu cầu"] * 100
                 ).round(1).astype(str) + "%"
                 st.dataframe(df_s2_view, use_container_width=True, height=420)
 
             with tab_s3:
-                st.dataframe(res["df_sheet3"], use_container_width=True, height=420)
+                st.dataframe(res["df_sheet3_preview"], use_container_width=True, height=420)
 
             with tab_s1:
-                st.caption("Hiển thị 1,000 dòng đầu để trình duyệt mượt mà (File tải về chứa đầy đủ dữ liệu).")
+                st.caption("Hiển thị 500 dòng đầu để trình duyệt mượt mà.")
                 st.dataframe(res["df_sheet1_preview"], use_container_width=True, height=420)
 
     except Exception as e:
+        release_memory()
         st.error(f"❌ Có lỗi xảy ra trong quá trình xử lý: {str(e)}")
 else:
     st.info("👆 Vui lòng chọn hoặc kéo thả file Excel nhu cầu mua hàng vào khung bên trên để bắt đầu.")

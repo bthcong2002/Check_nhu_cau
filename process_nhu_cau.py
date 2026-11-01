@@ -7,8 +7,8 @@ import openpyxl
 # =============================================================================
 # CẤU HÌNH ĐƯỜNG DẪN CỐ ĐỊNH
 # =============================================================================
-INPUT_FILE = r"C:\MWG\Thử nghiệm\Check Nhu cầu\Nhu cầu 27.10\Nhucầumuahàngtheosiêuthịtheongàyđặthàng_93c16d50ddac.xlsx"
-OUTPUT_FILE = r"C:\MWG\Thử nghiệm\Check Nhu cầu\Nhu cầu 27.10\nhucau_da_xu_ly.xlsx"
+INPUT_FILE = r"C:\MWG\Thử nghiệm\Check Nhu cầu\Nhu cầu 31.10\Nhucầumuahàngtheosiêuthịtheongàyđặthàng_9b844ec743c6.xlsx"
+OUTPUT_FILE = r"C:\MWG\Thử nghiệm\Check Nhu cầu\Nhu cầu 31.10\nhucau_da_xu_ly.xlsx"
 
 def run_process():
     if not os.path.exists(INPUT_FILE):
