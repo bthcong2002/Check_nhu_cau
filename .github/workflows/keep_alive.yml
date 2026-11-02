@@ -2,31 +2,94 @@ name: Keep Streamlit Alive
 
 on:
   schedule:
-    - cron: "0 */3 * * *" # Chạy mỗi 3 tiếng, bạn có thể chỉnh lại
-  workflow_dispatch:
+    # Chạy định kỳ mỗi 2 tiếng một lần để đảm bảo giữ kết nối WebSocket liên tục
+    - cron: "0 */2 * * *"
+  workflow_dispatch: # Cho phép bấm chạy thủ công (Run workflow) bất kỳ lúc nào
 
 jobs:
   ping-app:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Cài đặt Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.11"
 
-      - name: Cài đặt Playwright
+      - name: Cài đặt Playwright & Chromium
         run: |
-          # Ưu tiên lấy từ GitHub Secret STREAMLIT_APP_URL, nếu chưa cài thì dùng link mặc định bên dưới
-          APP_URL="${SECRET_APP_URL:-https://checknhucau-8yffey6edkxsixc6bxujak.streamlit.app/}"
-          echo "Đang ping ứng dụng tại: $APP_URL"
-          
-          # Sử dụng curl với User-Agent trình duyệt để đánh thức Streamlit Cloud
-          STATUS_CODE=$(curl -s -L -o /dev/null -w "%{http_code}" -H "User-Agent: Mozilla/5.0" "$APP_URL" || true)
-          echo "HTTP Status Code trả về: $STATUS_CODE"
-          
-          # Status 200, 302, 303 đều là máy chủ Streamlit đã tiếp nhận và phản hồi thành công (đánh thức app)
-          if [ "$STATUS_CODE" -ge 200 ] && [ "$STATUS_CODE" -lt 400 ]; then
-            echo "✅ Ứng dụng Streamlit đang phản hồi và được đánh thức thành công!"
-          else
-            echo "⚠️ Mã phản hồi: $STATUS_CODE (Request vẫn kích hoạt máy chủ Streamlit)"
-          fi
+          pip install --quiet playwright
+          playwright install --with-deps chromium
+
+      - name: Mở trang bằng trình duyệt ảo & Tự động đánh thức nếu ngủ đông
+        env:
+          SECRET_APP_URL: ${{ secrets.STREAMLIT_APP_URL }}
+        run: |
+          python - << 'EOF'
+          import os
+          import time
+          from playwright.sync_api import sync_playwright
+
+          app_url = os.environ.get("SECRET_APP_URL") or "https://checknhucau-8yffey6edkxsixc6bxujak.streamlit.app/"
+          print(f"🚀 Đang mở trình duyệt ảo truy cập: {app_url}")
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(
+                  headless=True,
+                  args=["--no-sandbox", "--disable-dev-shm-usage"]
+              )
+              context = browser.new_context(
+                  viewport={"width": 1280, "height": 800},
+                  user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+              )
+              page = context.new_page()
+
+              # Dùng domcontentloaded thay vì networkidle vì Streamlit giữ kết nối WebSocket liên tục
+              page.goto(app_url, wait_until="domcontentloaded", timeout=60000)
+              print("⏳ Đang đợi giao diện Streamlit Cloud tải (12s)...")
+              page.wait_for_timeout(12000)
+
+              # Kiểm tra xem ứng dụng có đang ở màn hình ngủ đông (Zzzz) không
+              wake_selectors = [
+                  "button:has-text('Yes, get this app back up!')",
+                  "[data-testid='wakeup-button-viewer']",
+                  "[data-testid='wakeup-button-owner']",
+                  "button:has-text('get this app back up')"
+              ]
+
+              clicked_wake = False
+              for sel in wake_selectors:
+                  btn = page.locator(sel).first
+                  if btn.count() > 0 and btn.is_visible():
+                      print(f"😴 Phát hiện app đang ngủ đông! Đang tự động bấm nút đánh thức ({sel})...")
+                      btn.click()
+                      clicked_wake = True
+                      break
+
+              # Kiểm tra thêm bên trong các iframe nếu có
+              if not clicked_wake:
+                  for frame in page.frames:
+                      for sel in wake_selectors:
+                          try:
+                              btn = frame.locator(sel).first
+                              if btn.count() > 0 and btn.is_visible():
+                                  print(f"😴 Phát hiện nút đánh thức trong iframe! Đang bấm ({sel})...")
+                                  btn.click()
+                                  clicked_wake = True
+                                  break
+                          except Exception:
+                              pass
+                      if clicked_wake:
+                          break
+
+              if clicked_wake:
+                  print("⏳ Đã bấm nút đánh thức! Đang đợi 35 giây để máy chủ Streamlit khởi động xong...")
+                  page.wait_for_timeout(35000)
+              else:
+                  print("✅ Ứng dụng đang thức! Giữ kết nối WebSocket thêm 15 giây để reset bộ đếm ngủ đông...")
+                  page.wait_for_timeout(15000)
+
+              print(f"📄 Tiêu đề trang hiện tại: {page.title()}")
+              browser.close()
+              print("🎉 Hoàn tất phiên truy cập giữ thức Streamlit!")
+          EOF
